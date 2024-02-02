@@ -6,7 +6,8 @@ import { fileNameG } from "../utils/fileNamegenerator.js";
 import { __filename, __dirname } from "../utils/pathHelper.js";
 import { removeFile } from "../utils/removeFile.js";
 
-//============= Register User
+
+// ============================================================================================ Register User
 //POST:user/register
 //UNPROTECTED 
 export const register = asyncHandler(async (req, res, next) => {
@@ -55,9 +56,7 @@ export const register = asyncHandler(async (req, res, next) => {
 });
 
 
-
-
-//=============Login User
+// ============================================================================================Login User
 //POST:user/login
 //UNPROTECTED 
 export const login = asyncHandler(async (req, res, next) => {
@@ -86,19 +85,25 @@ export const login = asyncHandler(async (req, res, next) => {
 });
 
 
-
-//============= Update User Info
+// ============================================================================================ Update User Info
 //PUT:user/updateUserInfo
 //PROTECTED  
 export const updateUserInfo = asyncHandler(async (req, res, next) => {
-  const { username, email, password } = req.body;
+  const { username, email, newPassword , confirmNewPassword } = req.body;
+
+  if (newPassword !== confirmNewPassword) {
+    const errorMessage = "New password does not match the confirmed password.";
+    const errorStatus = 400; // Bad Request
+  
+    return next(new HttpError(errorMessage, errorStatus));
+  }
 
   const user = await userModel.findOneAndUpdate(
     req.user._id,
     {
       username,
       email,
-      password,
+      password : newPassword,
     },
     { new: true, runValidators: true }
   );
@@ -106,12 +111,16 @@ export const updateUserInfo = asyncHandler(async (req, res, next) => {
   res.json(user);
 });
 
-//=============Update user avatar
+
+// ============================================================================================Update user avatar
 //PUT:user/updateUserAvatar
 //PROTECTED  
 export const updateUserAvatar = asyncHandler(async (req, res, next) => {
+  
   const { avatar } = req.files;
-
+  if(avatar.size > 500000){
+    return next(new HttpError("Profile picture too big", 413));
+  }
   const avatarFileName = fileNameG(avatar);
 
   req.user.avatar !== "" && removeFile(req.user.avatar);
@@ -134,3 +143,59 @@ export const updateUserAvatar = asyncHandler(async (req, res, next) => {
 
   res.json(user);
 });
+
+
+
+// ============================================================================================Remove user avatar
+// PUT:user/removeUserAvatar
+// PROTECTED  
+
+export const RemoveUserAvatar = asyncHandler(async (req, res, next) => {
+
+   req.user.avatar !== "" ? removeFile(req.user.avatar) : res.json('no avatar already')
+
+  const user = await userModel.findOneAndUpdate(
+    req.user._id,
+    {
+      avatar: '',
+    },
+    { new: true }
+  );
+
+  res.json(user)
+
+});
+
+
+// ============================================================================================ Remove user avatar
+// PUT:user/getUser
+// PROTECTED  
+
+export const getUserDetails = asyncHandler(async (req, res, next) => {
+ res.json(req.user)
+});
+
+
+
+
+// ============================================================================================ Remove user avatar
+// DELETE:user/deleteUser
+// PROTECTED
+
+export const deleteUser = asyncHandler(async (req, res, next) => {
+const user = await userModel.findById(req.user.id);
+   if (!user) {
+    return next(
+      new HttpError(`User does not exist with Id: ${req.params.id}`, 400)
+    ); 
+  }
+
+   await userModel.deleteOne({ _id: req.user.id });
+
+  res.status(200).json({
+    success: true,
+    message: "User Deleted Successfully",
+  });
+ });
+
+
